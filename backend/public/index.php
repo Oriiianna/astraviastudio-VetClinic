@@ -43,14 +43,10 @@ $app = AppFactory::create();
 $app->add(function (Request $request, RequestHandler $handler): Response {
     $origin = $request->getHeaderLine('Origin');
 
-    // Permite peticiones desde Vercel y localhost
-    if (preg_match('/\.vercel\.app$/', $origin) || str_contains($origin, 'localhost')) {
-        $allowedOrigin = $origin;
-    } else {
-        $allowedOrigin = '*';
-    }
+    // Refleja dinámicamente el origen exacto que realiza la petición
+    $allowedOrigin = !empty($origin) ? $origin : '*';
 
-    // Manejo explicito para las peticiones PREFLIGHT (OPTIONS)
+    // Manejo explícito para las peticiones PREFLIGHT (OPTIONS)
     if ($request->getMethod() === 'OPTIONS') {
         $response = new \Slim\Psr7\Response();
         return $response
