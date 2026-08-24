@@ -1,40 +1,34 @@
-# PHP 8.2 CLI
-FROM php:8.2-cli
+FROM php:8.2-apache
 
-# Instalar extensiones necesarias para MySQL/PDO
-RUN docker-php-ext-install pdo pdo_mysql
+# 1. Habilitar mod_rewrite para Slim
+RUN a2enmod rewrite
 
-# Directorio de trabajo
+# 2. Instalar librerías del sistema y extensiones de PHP requeridas por tu proyecto
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    libpq-dev \
+    && docker-php-ext-install pdo pdo_mysql zip
+
+# 3. Instalar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# 4. Definir directorio de trabajo y copiar el código
 WORKDIR /var/www/html
+COPY . .
 
-# Instalar Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# 5. Configurar Apache para Slim 4 (DocumentRoot apuntando a public/)
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/conf-available/*.conf
 
-# Copiar primero los archivos de Composer para aprovechar la caché de Docker
-COPY composer.json composer.lock* ./
-
-# Instalar dependencias de producción
+# 6. Instalar dependencias con Composer (agregando --ignore-platform-reqs por si falta alguna extensión menor)
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
-    --optimize-autoloader
+    --optimize-autoloader \
+    --ignore-platform-reqs
 
-# Copiar el resto del backend
-COPY . .
-
-# Crear directorios necesarios para la aplicación
-RUN mkdir -p \
-    storage/adjuntos \
-    public/uploads \
-    var/cache \
-    logs
-
-# Dar permisos de escritura a los directorios que utiliza la aplicación
-RUN chmod -R 775 storage var logs public/uploads
-
-# Render utilizará el puerto definido en $PORT
-EXPOSE 10000
-
-# Iniciar el servidor PHP con Slim como front controller
-CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-10000} -t public public/index.php"]
+EXPOSE 80
