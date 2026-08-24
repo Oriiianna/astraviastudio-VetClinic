@@ -1,0 +1,11 @@
+# Dependencias y artefactos: cada subproyecto tiene su propio .gitignore
+node_modules/
+vendor/
+dist/
+
+# Entornos
+.env
+.env.local
+
+.DS_Store
+Thumbs.db
