@@ -5,5 +5,4 @@
 /public/uploads/*
 !/public/uploads/.htaccess
 !/public/uploads/.gitkeep
-composer.lock
 .DS_Store
