@@ -38,20 +38,26 @@ date_default_timezone_set('America/Argentina/Cordoba');
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 
-// --- Middleware CORS (Global) ------------------------------------------- //
+// Cargar rutas y middlewares del sistema
+(require __DIR__ . '/../config/middleware.php')($app);
+(require __DIR__ . '/../routes/api.php')($app);
 
+// Ruta comodín para capturar OPTIONS globales
+$app->options('/{routes:.+}', function (Request $request, Response $response): Response {
+    return $response;
+});
+
+// --- Middleware CORS (Debe ser el ÚLTIMO agregado para ejecutarse PRIMERO) --- //
 $app->add(function (Request $request, RequestHandler $handler): Response {
     $origin = $request->getHeaderLine('Origin');
-
-    // Refleja dinámicamente el origen exacto que realiza la petición
     $allowedOrigin = !empty($origin) ? $origin : '*';
 
-    // Manejo explícito para las peticiones PREFLIGHT (OPTIONS)
+    // Si es una petición PREFLIGHT (OPTIONS), responder inmediatamente 200 OK
     if ($request->getMethod() === 'OPTIONS') {
         $response = new \Slim\Psr7\Response();
         return $response
             ->withHeader('Access-Control-Allow-Origin', $allowedOrigin)
-            ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+            ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization, X-Api-Key')
             ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
             ->withHeader('Access-Control-Allow-Credentials', 'true')
             ->withStatus(200);
@@ -61,17 +67,9 @@ $app->add(function (Request $request, RequestHandler $handler): Response {
 
     return $response
         ->withHeader('Access-Control-Allow-Origin', $allowedOrigin)
-        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization, X-Api-Key')
         ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
         ->withHeader('Access-Control-Allow-Credentials', 'true');
 });
-
-// Ruta comodín para capturar OPTIONS globales
-$app->options('/{routes:.+}', function (Request $request, Response $response): Response {
-    return $response;
-});
-
-(require __DIR__ . '/../config/middleware.php')($app);
-(require __DIR__ . '/../routes/api.php')($app);
 
 $app->run();
