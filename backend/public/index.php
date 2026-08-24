@@ -11,6 +11,9 @@ declare(strict_types=1);
  */
 
 use DI\ContainerBuilder;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Slim\Factory\AppFactory;
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -47,6 +50,32 @@ date_default_timezone_set('America/Argentina/Cordoba');
 
 AppFactory::setContainer($container);
 $app = AppFactory::create();
+
+// --- Middlewares & CORS ------------------------------------------------ //
+
+// 1. Manejar preflight OPTIONS globalmente
+$app->options('/{routes:.+}', function (Request $request, Response $response): Response {
+    return $response;
+});
+
+// 2. Middleware de CORS dinámico
+$app->add(function (Request $request, RequestHandler $handler): Response {
+    $response = $handler->handle($request);
+
+    $origin = $request->getHeaderLine('Origin');
+
+    if (preg_match('/\.vercel\.app$/', $origin) || str_contains($origin, 'localhost')) {
+        $allowedOrigin = $origin;
+    } else {
+        $allowedOrigin = '*';
+    }
+
+    return $response
+        ->withHeader('Access-Control-Allow-Origin', $allowedOrigin)
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+        ->withHeader('Access-Control-Allow-Credentials', 'true');
+});
 
 (require __DIR__ . '/../config/middleware.php')($app);
 (require __DIR__ . '/../routes/api.php')($app);
